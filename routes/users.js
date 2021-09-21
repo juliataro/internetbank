@@ -3,6 +3,7 @@ const router = require("express").Router()
 const User = require("../models/User")
 const Account = require("../models/Account")
 
+
 router.post('/', async function (req, res) {
 
     // Validate password
@@ -26,6 +27,8 @@ router.post('/', async function (req, res) {
 
         // 409 Username already exists
         if (/E11000.*username.* dup key.*/.test(e.message)) {
+
+            console.log(e)
             return res.status(409).send({error: 'Username already exists'})
         }
 
