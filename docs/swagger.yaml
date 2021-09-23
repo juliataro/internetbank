@@ -1,5 +1,3 @@
-
-
 openapi: 3.0.2
 info:
   title: yabarbank
@@ -100,12 +98,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/error'
               examples:
-                Invalid Authorization header:
-                  value:
-                    error: Invalid authorization header
                 Invalid Authorization header format:
                   value:
-                    error: Invalid authorization header format
+                    error: Invalid Authorization header format
                 Missing Authorization header:
                   value:
                     error: Missing Authorization header
@@ -116,6 +111,56 @@ paths:
       security:
         -
           Bearer: []
+      summary: Logs the user out
+      description: Destroy the session
+  /users/current:
+    get:
+      tags:
+        - users
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/user'
+              examples:
+                User details:
+                  value:
+                    accounts:
+                      -
+                        balance: 10000
+                        createdAt: '2021-09-23T09:28:37.328Z'
+                        currency: USD
+                        id: 614c4991652c96f1f53f5bd3
+                        name: Main
+                        number: abcba0a5e81b9610c2865fe203490811e9e
+                        userId: 614c4991652c96f1f53f5bd1
+                    id: 614c4991652c96f1f53f5bd1
+                    name: Mikki
+                    username: Mikki
+          description: |
+            Returns user's details
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                Invalid Authorization header format:
+                  value:
+                    error: Invalid Authorization header format
+                Missing Authorization header:
+                  value:
+                    error: Missing Authorization header
+                Invalid token:
+                  value:
+                    error: Invalid token
+          description: Problem with authorization header
+      security:
+        -
+          Bearer: []
+      summary: Get user's details
+      description: Returns instance of `user`
 components:
   schemas:
     user:
