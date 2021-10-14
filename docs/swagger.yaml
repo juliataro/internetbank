@@ -59,8 +59,8 @@ paths:
             examples:
               POST /sessions request body:
                 value:
-                  username: miki
-                  password: plutoonium
+                  username: TEST
+                  password: TEST3434
         required: true
       tags:
         - sessions
@@ -71,7 +71,7 @@ paths:
               examples:
                 POST /sessions 201 response:
                   value:
-                    token: 23m52jmnb52b524t4
+                    token: 615f573c763ab0e1cbd6080c
           description: Successful response.
         '401':
           content:
@@ -129,15 +129,15 @@ paths:
                     accounts:
                       -
                         balance: 10000
-                        createdAt: '2021-09-23T09:28:37.328Z'
+                        createdAt: '2021-09-28T15:32:43.241Z'
                         currency: USD
-                        id: 614c4991652c96f1f53f5bd3
+                        id: 61533638c51acde23b70284f
                         name: Main
-                        number: abcba0a5e81b9610c2865fe203490811e9e
-                        userId: 614c4991652c96f1f53f5bd1
-                    id: 614c4991652c96f1f53f5bd1
-                    name: Mikki
-                    username: Mikki
+                        number: abcc06c2f7032eece45cfd0331afab3833d
+                        userId: 61533638c51acde23b70284d
+                    id: 61533638c51acde23b70284d
+                    name: TEST
+                    username: TEST
           description: |
             Returns user's details
         '401':
@@ -148,19 +148,88 @@ paths:
               examples:
                 Invalid Authorization header format:
                   value:
-                    error: Invalid Authorization header format
+                    error: Invalid Authorization header
                 Missing Authorization header:
                   value:
                     error: Missing Authorization header
-                Invalid token:
-                  value:
-                    error: Invalid token
           description: Problem with authorization header
       security:
         -
           Bearer: []
       summary: Get user's details
       description: Returns instance of `user`
+  /transactions:
+    summary: Path used to manage the list of transactions.
+    description: >-
+      The REST endpoint/path used to list and create zero or more `transaction` entities.  This path
+      contains a `GET` and `POST` operation to perform the list and create tasks, respectively.
+    post:
+      requestBody:
+        description: A new `transaction` to be created.
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/transaction'
+        required: true
+      tags:
+        - transactions
+      responses:
+        '201':
+          description: Successful response.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                Invalid amount:
+                  value:
+                    error: Invalid amount
+                Missind parameter:
+                  value:
+                    error: 'Transaction validation failed: .* : Path `.*` is required.'
+                'Path `accounFrom`  (`a`) is shorter than the minimum allowed length. ':
+                  value:
+                    error: 'Path `.*`  (`.*`) is shorter than the minimum allowed length. '
+          description: Bad request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                Invalid Authorization header format:
+                  value:
+                    error: Invalid Authorization header
+                Missing Authorization header:
+                  value:
+                    error: Missing Authorization header
+          description: Problem with authorization header
+        '402':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                Insufficient funds:
+                  value:
+                    error: Insufficient funds
+          description: Insufficient funds
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/error'
+              examples:
+                accountFrom not found:
+                  value:
+                    error: accountFrom not found
+          description: Not found
+      security:
+        -
+          Bearer: []
+      operationId: createtransaction
+      description: Creates a new instance of a transaction
 components:
   schemas:
     user:
@@ -175,9 +244,9 @@ components:
         name:
           type: string
       example:
-        username: julia
-        password: secret
-        name: Julia Taro
+        username: TEST
+        password: TEST3434
+        name: TEST
     error:
       title: Root Type for error
       description: ''
@@ -190,6 +259,25 @@ components:
     session:
       description: ''
       type: object
+    transaction:
+      title: Root Type for transaction
+      description: ''
+      type: object
+      properties:
+        accountFrom:
+          type: string
+        accountTo:
+          type: string
+        amount:
+          format: int32
+          type: integer
+        explanation:
+          type: string
+      example:
+        accountFrom: babc06c2f7032eece45cfd0331afab3833d
+        accountTo: 093BY000000001
+        amount: 1500000000
+        explanation: Don’t go spend it all at once
   securitySchemes:
     Bearer:
       scheme: bearer
