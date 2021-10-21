@@ -39,8 +39,7 @@ router.post('/', async function (req, res) {
             return res.status(400).send({error: e.message})
         }
 
-        console.log(e.message)
-        console.log(e.code)
+        return res.status(500).send({error: e.message})
     }
 
     return res.status(201).send('');

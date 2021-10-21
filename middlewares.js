@@ -6,6 +6,7 @@ const Transaction = require("./models/Transaction")
 const fetch = require("node-fetch")
 const jose = require('node-jose')
 const fs = require('fs')
+//const {sendRequest} = require("./middlewares");
 
 exports.verifyToken = async (req, res, next) => {
 
@@ -80,14 +81,9 @@ exports.refreshListOfBanksFromCentralBank = async function refreshListOfBanksFro
 
 function isExpired(transaction) {
     // check of the transaction has expired
-    const expireDate = new Date(
-        transaction.createdAt.getFullYear(),
-        transaction.createdAt.getMonth(),
-        transaction.createdAt.getDay() + 3
-    )
+    const expireDate = new Date(transaction.createdAt.setDate(transaction.createdAt.getDate() + 3))
+    return new Date > expireDate
 
-
-    return new Date > expireDate;
 }
 
 async function setStatus(transaction, status, statusDetail) {
@@ -114,20 +110,33 @@ async function createSignedTransaction(input) {
 }
 
 async function sendRequestToBank(destinationBank, transactionAsJwt) {
-    return
-    response = await sendRequest(destinationBank.transactionUrl, {jwt: transactionAsJwt});
+
+    return await exports.sendPostRequest(destinationBank.transactionUrl, {jwt: transactionAsJwt})
+
 }
 
-async function sendRequest(url, data) {
+exports.sendPostRequest = async (url, data) => {
+    return await exports.sendRequest('post', url, data)
+}
+
+exports.sendGetRequest = async (url) => {
+    return await exports.sendRequest('get', url, null)
+}
+
+exports.sendRequest = async (method, url, data) => {
     let responseText = '';
 
-    try {
-        let response = await fetch(url, {
-            method: 'post',
-            body: JSON.stringify(data),
-            headers: {'Content-Type': 'application/json'}
-        });
+    let options = {
+        method,
+        headers: {'Content-Type': 'application/json'}
+    }
 
+    if (data) {
+        options.body = JSON.stringify(data)
+    }
+
+    try {
+        let response = await fetch(url, options);
 
         // Parse response body text
         responseText = await response.text()
@@ -135,10 +144,7 @@ async function sendRequest(url, data) {
         return JSON.parse(responseText);
 
     } catch (e) {
-        throw Error(JSON.stringify({
-            exceptionMessage: e.message,
-            responseText
-        }))
+        throw new Error('sendRequest('+url+'): ' + e.message +  (typeof responseText === 'undefined' ? '': '|' + responseText))
     }
 }
 
@@ -147,6 +153,8 @@ async function refund(transaction) {
         const accountFrom = await Account.findOne({number: transaction.accountFrom})
         console.log('Refunding transaction ' + transaction._id + ' by ' + transaction.amount)
         accountFrom.balance += transaction.amount
+        await accountFrom.save()
+
     } catch (e) {
         console.log('Error refunding account: ')
         console.log('Reason: ' + e.message)
@@ -186,7 +194,7 @@ exports.processTransactions = async function () {
             destinationBank = Bank.setTraceFunction(traceFunction).findOne({bankPrefix});
 
             if (!destinationBank) {
-                console.log(destinationBank.name)
+                console.log('Failed', 'Bank' + bankPrefix + ' does not exist')
                 await refund(transaction);
                 return await setStatus(transaction, 'Failed', 'Bank' + bankPrefix + ' does not exist')
 
@@ -203,16 +211,22 @@ exports.processTransactions = async function () {
                 senderName: transaction.senderName
             }));
 
+            if (typeof response.error !== 'undefined') {
+                return await setStatus(transaction, 'Failed', response.error)
+
+            }
+
             transaction.receiverName = response.receiverName
             console.log('Completed transaction ' + transaction._id)
             return await setStatus(transaction, 'Completed', '')
 
 
         } catch (e) {
-
+            console.log(e)
             console.log('Error sending request to destination bank:')
             console.log('- Transaction id is: ' + transaction._id)
             console.log('- Error is: ' + e.message)
+
             return await setStatus(transaction, 'Pending', e.message)
 
         }

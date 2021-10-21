@@ -13,6 +13,7 @@
   "author": "juliataro",
   "license": "ISC",
   "dependencies": {
+    "base64url": "^3.0.1",
     "bcrypt": "^5.0.1",
     "dotenv": "^10.0.0",
     "express": "^4.17.1",
@@ -22,6 +23,7 @@
     "node-fetch": "^2.6.1",
     "node-jose": "^2.0.0",
     "swagger-ui-express": "^4.1.6",
-    "yamljs": "^0.3.0"
+    "yamljs": "^0.3.0",
+    "axios": "^0.23.0"
   }
 }
