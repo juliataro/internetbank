@@ -4,14 +4,14 @@ const Account = require("../models/Account")
 const Bank = require("../models/Bank")
 const Transaction = require("../models/Transaction")
 const base64url = require('base64url');
-const {verifyToken, refreshListOfBanksFromCentralBank, sendGetRequest} = require("../middlewares");
+const {verifyToken, refreshListOfBanksFromCentralBank} = require("../middlewares");
 const jose = require("node-jose");
 const fs = require("fs");
 const axios = require("axios");
 
 
 function debitAccount(accountFrom, amount) {
-    accountFrom.balance -= amount
+    accountFrom.balance -= parseInt(amount)
     accountFrom.save()
 }
 
@@ -29,7 +29,7 @@ router.post('/', verifyToken, async function (req, res) {
 
 
         // 402 Insufficient funds
-        if (req.body.amount > accountFrom.balance) {
+        if (parseInt(req.body.amount) > parseInt(accountFrom.balance)) {
             return res.status(402).send({error: "Insufficient funds"})
         }
 
@@ -72,7 +72,7 @@ router.post('/', verifyToken, async function (req, res) {
             accountTo: req.body.accountTo,
             explanation: req.body.explanation,
             statusDetail: statusDetail,
-            senderName: (await User.findOne({id: req.userId})).name // sõna name lõppus kontrollida, midagi ei jõudnud vist kirjutada
+            senderName: (await User.findOne({_id: req.userId})).name // sõna name lõppus kontrollida, midagi ei jõudnud vist kirjutada
 
         }).save()
 
@@ -167,20 +167,20 @@ router.post('/b2b', async function (req, res) {
         }
 
         const accountToOwner = await User.findOne({_id: accountTo.userId})
-        accountTo.balance += amount
+        accountTo.balance += parseInt(amount)
         await accountTo.save();
 
         await Transaction.create({
             userId: accountToOwner._id,
-            accountFrom:payload.accountFrom ,
-            accountTo:payload.accountTo ,
-            amount:payload.amount ,
-            currency:payload.currency ,
-            createdAt:payload.createdAt ,
-            explanation:payload.explanation ,
-            senderName:payload.senderName ,
-            receiverName:accountToOwner.name ,
-            status:'Completed'
+            accountFrom: payload.accountFrom,
+            accountTo: payload.accountTo,
+            amount: payload.amount,
+            currency: payload.currency,
+            createdAt: payload.createdAt,
+            explanation: payload.explanation,
+            senderName: payload.senderName,
+            receiverName: accountToOwner.name,
+            status: 'Completed'
         })
 
 
@@ -190,8 +190,8 @@ router.post('/b2b', async function (req, res) {
     }
 })
 
-async  function getRates(from,to) {
-    const response = await axios.get('https://api.exchangerate.host/latest?base='+from)
+async function getRates(from, to) {
+    const response = await axios.get('https://api.exchangerate.host/latest?base=' + from)
     console.log(`Converting ${from} to ${to}`)
     for (const rate in response.data.rates) {
         if (rate === to) {
@@ -201,6 +201,16 @@ async  function getRates(from,to) {
     }
 }
 
+router.get('/', verifyToken, async (req, res) => {
+
+    //Get user's transactions
+    const transactions = await Transaction.find({userId: req.userId})
+
+    // Return them
+
+    res.status(200).json(transactions)
+
+})
 
 
 module.exports = router

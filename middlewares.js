@@ -149,16 +149,12 @@ exports.sendRequest = async (method, url, data) => {
 }
 
 async function refund(transaction) {
-    try {
-        const accountFrom = await Account.findOne({number: transaction.accountFrom})
-        console.log('Refunding transaction ' + transaction._id + ' by ' + transaction.amount)
-        accountFrom.balance += transaction.amount
-        await accountFrom.save()
-
-    } catch (e) {
-        console.log('Error refunding account: ')
-        console.log('Reason: ' + e.message)
+    const accountFrom = await Account.findOne({number: transaction.accountFrom})
+    if (!accountFrom) {
+        return console.log('Account not found: ' + transaction.accountFrom)
     }
+    accountFrom.balance += transaction.amount
+    await accountFrom.save()
 }
 
 exports.processTransactions = async function () {
@@ -191,7 +187,7 @@ exports.processTransactions = async function () {
                 return await setStatus(transaction, 'Pending', 'Central bank refresh failed: ' + result.error)
             }
 
-            destinationBank = Bank.setTraceFunction(traceFunction).findOne({bankPrefix});
+            destinationBank = Bank.findOne({bankPrefix});
 
             if (!destinationBank) {
                 console.log('Failed', 'Bank' + bankPrefix + ' does not exist')
