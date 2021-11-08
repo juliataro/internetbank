@@ -6,6 +6,8 @@ const Transaction = require("./models/Transaction")
 const fetch = require("node-fetch")
 const jose = require('node-jose')
 const fs = require('fs')
+
+
 //const {sendRequest} = require("./middlewares");
 
 exports.verifyToken = async (req, res, next) => {
@@ -48,10 +50,46 @@ exports.refreshListOfBanksFromCentralBank = async function refreshListOfBanksFro
 
     try {
 
+        let nockScope, nock
+
+        console.log('Refreshing banks');
+
+        if (process.env.TEST_MODE === 'true') {
+
+            console.log('TEST_MODE=true');
+            nock = require('nock')
+            nockScope = nock(process.env.CENTRAL_BANK_URL)
+                .persist()
+                .get('/banks')
+                .reply(200,
+                    [
+                        {
+                            "name": "fooBank",
+                            "transactionUrl": "http://foobank.com/transactions/b2b",
+                            "bankPrefix": "843",
+                            "owners": "John Smith",
+                            "jwksUrl": "http://foobank.diarainfra.com/jwks.json"
+                        },
+                        {
+                            "name": "barBank",
+                            "transactionUrl": "http://barbank.com/api/external/receive",
+                            "bankPrefix": "bar",
+                            "owners": "Jane Smith",
+                            "jwksUrl": "http://barbank.com/api/external/keys"
+                        }
+                    ]
+                )
+        }
+
+        console.log(`${process.env.CENTRAL_BANK_URL}/banks`)
+
         //Attempt to get a list of banks in JSON format form central bank
-        let banks = await fetch(process.env.CENTRAL_BANK_URL, {
+        let banks = await fetch(`${process.env.CENTRAL_BANK_URL}/banks`, {
             headers: {'Api-Key': process.env.CENTRAL_BANK_APIKEY}
         }).then(responseText => responseText.json())
+
+console.log('refreshListOfBanksFromCentralBank: CB response was: ' + JSON.stringify(banks))
+
 
         // delete all data from banks collection
         await Bank.deleteMany()
@@ -105,6 +143,8 @@ async function createSignedTransaction(input) {
         return await jose.JWS.createSign({format: 'compact'}, key).update(JSON.stringify(input), "utf8").final()
     } catch (err) {
         console.error('Error reading private key' + err)
+        console.log(privateKey)
+        console.error('Error reading private key' + err)
         throw Error('Error reading private key' + err)
     }
 }
@@ -144,7 +184,7 @@ exports.sendRequest = async (method, url, data) => {
         return JSON.parse(responseText);
 
     } catch (e) {
-        throw new Error('sendRequest('+url+'): ' + e.message +  (typeof responseText === 'undefined' ? '': '|' + responseText))
+        throw new Error('sendRequest(' + url + '): ' + e.message + (typeof responseText === 'undefined' ? '' : '|' + responseText))
     }
 }
 
@@ -163,7 +203,7 @@ exports.processTransactions = async function () {
     const pendingTransactions = await Transaction.find({status: 'Pending'})
 
     // Loop through all pending
-    pendingTransactions.forEach(async transaction => {
+    pendingTransactions.forEach(async (transaction, bankTo = null) => {
 
         console.log('Processing transaction ' + transaction._id)
 
@@ -198,6 +238,21 @@ exports.processTransactions = async function () {
         }
 
         try {
+
+            const nock = require('nock')
+            let nockScope
+
+            if (process.env.TEST_MODE === 'true') {
+                const nockUrl = new URL(bankTo.transactionUrl)
+
+                console.log('Nocking ' + JSON.stringify(nockUrl));
+
+                nockScope = nock(`${nockUrl.protocol}//${nockUrl.host}`)
+                    .persist()
+                    .post(nockUrl.pathname)
+                    .reply(200, {receiverName: 'foobar'})
+            }
+
             const response = await sendRequestToBank(destinationBank, await createSignedTransaction({
                 accountFrom: transaction.accountFrom,
                 accountTo: transaction.accountTo,
@@ -206,6 +261,7 @@ exports.processTransactions = async function () {
                 explanation: transaction.explanation,
                 senderName: transaction.senderName
             }));
+
 
             if (typeof response.error !== 'undefined') {
                 return await setStatus(transaction, 'Failed', response.error)
